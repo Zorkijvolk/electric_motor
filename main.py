@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow, QPushButton, QApplication
+from PyQt6.QtWidgets import QMainWindow, QPushButton, QApplication, QTextBrowser
 from PyQt6.QtGui import QFont
 import sys
 
@@ -22,20 +22,41 @@ class MainWindow(QMainWindow):
         self.endbutton = QPushButton("Выйти из программы", self)
         self.endbutton.resize(round(500 * self.kw), round(100 * self.kh))
         self.endbutton.move(width // 2 - self.startbutton.width() // 2,
-                              round(height * 0.74) - self.startbutton.height() // 2)
+                            round(height * 0.74) - self.startbutton.height() // 2)
         self.guidebutton = QPushButton("Дополнительная информация", self)
         self.guidebutton.resize(round(500 * self.kw), round(100 * self.kh))
         self.guidebutton.move(width // 2 - self.startbutton.width() // 2,
-                            round(height * 0.58) - self.startbutton.height() // 2)
+                              round(height * 0.58) - self.startbutton.height() // 2)
+        self.guidebutton.clicked.connect(self.guide)
         self.testbutton = QPushButton("Обучение по работе с программой", self)
         self.testbutton.resize(round(500 * self.kw), round(100 * self.kh))
         self.testbutton.move(width // 2 - self.startbutton.width() // 2,
-                              round(height * 0.42) - self.startbutton.height() // 2)
+                             round(height * 0.42) - self.startbutton.height() // 2)
+        self.endbutton.clicked.connect(self.end)
+        self.guidetext = QTextBrowser(self)
+        self.guidetext.resize(round(500 * self.kw), (round(height * 0.48)))
+        self.guidetext.move(width // 2 - self.startbutton.width() // 2,
+                            round(height * 0.26) - round(100 * self.kh) // 2)
+        self.guidetext.setText("Разрабы Дауны")
+        self.guidetext.hide()
+
+    def end(self):
+        sys.exit()
+
+    def hidebuttons(self):
+        self.startbutton.hide()
+        self.endbutton.hide()
+        self.testbutton.hide()
+        self.guidebutton.hide()
+
+    def guide(self):
+        self.hidebuttons()
+        self.guidetext.show()
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     screen = QApplication.screens()[0].size()
     window = MainWindow(screen.width(), screen.height())
-    window.show()
+    window.showFullScreen()
     sys.exit(app.exec())
