@@ -13,9 +13,20 @@ from vtkmodules.vtkRenderingCore import (
 )
 
 
+class NamedActor(vtkActor):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+
+    def get_name(self):
+        return self.name
+
+
 class MainWindow(QMainWindow):
     def __init__(self, width, height):
         super().__init__()
+        self.deleted_actors = []
+        self.deleted_test_actors = []
         self.InintUI(width, height)
 
     def InintUI(self, width, height):
@@ -34,7 +45,8 @@ class MainWindow(QMainWindow):
         cube.SetFileName("models/cube.stl")
         self.frame = QFrame()
         self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
-        self.vtkWidget.resize(width, height)
+        self.vtkWidget.resize(height, height)
+        self.vtkWidget.move((width - height) // 2, 0)
         self.ren = vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
@@ -46,21 +58,20 @@ class MainWindow(QMainWindow):
         mapper3 = vtkPolyDataMapper()
         mapper3.SetInputConnection(cilinder.GetOutputPort())
 
-        actor1 = vtkActor()
+        actor1 = NamedActor("ball")
         actor1.SetMapper(mapper1)
-#        actor2 = vtkActor()
-#        actor2.SetMapper(mapper2)
-        actor3 = vtkActor()
+        actor2 = NamedActor("cube")
+        actor2.SetMapper(mapper2)
+        actor3 = NamedActor("cilinder")
         actor3.SetMapper(mapper3)
 
         self.ren.AddActor(actor1)
-#        self.ren.AddActor(actor2)
+        self.ren.AddActor(actor2)
         self.ren.AddActor(actor3)
 
         self.ren.ResetCamera()
 
         self.setCentralWidget(self.frame)
-        self.frame.resize(1500, 1500)
 #        self.frame.move(0, 0)
         self.frame.hide()
 
@@ -91,10 +102,15 @@ class MainWindow(QMainWindow):
         self.guidetext.setText("Разрабы Дауны")
         self.guidetext.hide()
         self.backbutton = QPushButton("Назад", self)
-        self.backbutton.resize(round(500 * self.kw), round(100 * self.kh))
+        self.backbutton.resize((width - self.vtkWidget.width()) // 2, round(100 * self.kh))
 #        self.backbutton.move()
         self.backbutton.hide()
         self.backbutton.clicked.connect(self.back)
+        self.vtktext = QTextBrowser(self)
+        self.vtktext.resize(self.backbutton.width(), height)
+        self.vtktext.move(height + self.backbutton.width(), 0)
+        self.vtktext.hide()
+        self.c_test_button = QPushButton("Скрыть корпус", self)
 
     def end(self):
         sys.exit()
@@ -113,6 +129,8 @@ class MainWindow(QMainWindow):
     def test(self):
         self.hidebuttons()
         self.frame.show()
+        self.vtktext.show()
+        self.vtktext.setText("Это тестовая модель")
 
     def start(self):
         self.hidebuttons()
@@ -125,6 +143,20 @@ class MainWindow(QMainWindow):
         self.backbutton.hide()
         self.guidetext.hide()
         self.frame.hide()
+        self.vtktext.hide()
+
+    def hide_c_test(self):
+        for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
+            if actor.get_name() == "cube":
+                del_actor = actor
+                self.deleted_test_actors.append(actor)
+                break
+        self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
+
+    def show_c_test(self):
+        for actor in self.deleted_test_actors:
+            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
+            self.deleted_test_actors.remove(actor)
 
 
 if __name__ == '__main__':
