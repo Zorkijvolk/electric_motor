@@ -43,8 +43,7 @@ class MainWindow(QMainWindow):
         cilinder.SetFileName("models/cilinder.stl")
         cube = vtk.vtkSTLReader()
         cube.SetFileName("models/cube.stl")
-        self.frame = QFrame()
-        self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
+        self.vtkWidget = QVTKRenderWindowInteractor(self)
         self.vtkWidget.resize(height, height)
         self.vtkWidget.move((width - height) // 2, 0)
         self.ren = vtkRenderer()
@@ -70,10 +69,8 @@ class MainWindow(QMainWindow):
         self.ren.AddActor(actor3)
 
         self.ren.ResetCamera()
-
-        self.setCentralWidget(self.frame)
 #        self.frame.move(0, 0)
-        self.frame.hide()
+        self.vtkWidget.hide()
 
         self.startbutton = QPushButton("Начать просмотр", self)
         self.startbutton.resize(round(500 * self.kw), round(100 * self.kh))
@@ -111,6 +108,9 @@ class MainWindow(QMainWindow):
         self.vtktext.move(height + self.backbutton.width(), 0)
         self.vtktext.hide()
         self.c_test_button = QPushButton("Скрыть корпус", self)
+        self.c_test_button.resize(self.backbutton.width(), self.backbutton.height())
+        self.c_test_button.move(0, self.backbutton.height() + 1)
+        self.c_test_button.hide()
 
     def end(self):
         sys.exit()
@@ -125,10 +125,15 @@ class MainWindow(QMainWindow):
     def guide(self):
         self.hidebuttons()
         self.guidetext.show()
+        self.c_test_button.show()
+        self.c_test_button.setText("Скрыть корпус")
+        for actor in self.deleted_test_actors:
+            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
+            self.deleted_test_actors.remove(actor)
 
     def test(self):
         self.hidebuttons()
-        self.frame.show()
+        self.vtkWidget.show()
         self.vtktext.show()
         self.vtktext.setText("Это тестовая модель")
 
