@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QMainWindow, QPushButton, QApplication, QTextBrowser, QFrame
 from PyQt6.QtGui import QFont
 import sys
-import vtkmodules.vtkInteractionStyle
+import vtkmodules.vtkInteractionStyle as vis
 import vtkmodules.vtkRenderingOpenGL2
 import vtk
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -49,6 +49,10 @@ class MainWindow(QMainWindow):
         self.ren = vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
+        self.iren.SetInteractorStyle(vis.vtkInteractorStyleTrackballCamera())
+        self.picker = vtk.vtkCellPicker()
+        self.picker.AddObserver("EndPickEvent", self.process_pick)
+        self.iren.SetPicker(self.picker)
 
         mapper1 = vtkPolyDataMapper()
         mapper1.SetInputConnection(ball.GetOutputPort())
@@ -111,9 +115,17 @@ class MainWindow(QMainWindow):
         self.c_test_button.resize(self.backbutton.width(), self.backbutton.height())
         self.c_test_button.move(0, self.backbutton.height() + 1)
         self.c_test_button.hide()
+        self.c_test_button.clicked.connect(self.c_test)
 
     def end(self):
         sys.exit()
+
+    def process_pick(self, object, event):
+        point_id = object.GetPointId()
+        if point_id >= 0:
+            vector_magnitude = self.vtkWidget.GetOutput().GetPointData().GetScalars().GetTuple(point_id)
+            print(vector_magnitude)
+            print(vector_magnitude[0])
 
     def hidebuttons(self):
         self.startbutton.hide()
@@ -125,17 +137,18 @@ class MainWindow(QMainWindow):
     def guide(self):
         self.hidebuttons()
         self.guidetext.show()
-        self.c_test_button.show()
-        self.c_test_button.setText("Скрыть корпус")
-        for actor in self.deleted_test_actors:
-            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
-            self.deleted_test_actors.remove(actor)
+
 
     def test(self):
         self.hidebuttons()
         self.vtkWidget.show()
         self.vtktext.show()
         self.vtktext.setText("Это тестовая модель")
+        self.c_test_button.show()
+        self.c_test_button.setText("Скрыть корпус")
+        for actor in self.deleted_test_actors:
+            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
+            self.deleted_test_actors.remove(actor)
 
     def start(self):
         self.hidebuttons()
@@ -147,21 +160,24 @@ class MainWindow(QMainWindow):
         self.guidebutton.show()
         self.backbutton.hide()
         self.guidetext.hide()
-        self.frame.hide()
+        self.vtkWidget.hide()
         self.vtktext.hide()
+        self.c_test_button.hide()
 
-    def hide_c_test(self):
-        for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
-            if actor.get_name() == "cube":
-                del_actor = actor
-                self.deleted_test_actors.append(actor)
-                break
-        self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
-
-    def show_c_test(self):
-        for actor in self.deleted_test_actors:
-            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
-            self.deleted_test_actors.remove(actor)
+    def c_test(self):
+        if self.c_test_button.text() == "Скрыть корпус":
+            for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
+                if actor.get_name() == "cube":
+                    del_actor = actor
+                    self.deleted_test_actors.append(actor)
+                    break
+            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
+            self.c_test_button.setText("Показать корпус")
+        else:
+            self.c_test_button.setText("Скрыть корпус")
+            for actor in self.deleted_test_actors:
+                self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
+                self.deleted_test_actors.remove(actor)
 
 
 if __name__ == '__main__':
