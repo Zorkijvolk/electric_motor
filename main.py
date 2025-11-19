@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         self.ren.AddActor(actor3)
 
         self.ren.ResetCamera()
-#        self.frame.move(0, 0)
+        #        self.frame.move(0, 0)
         self.vtkWidget.hide()
 
         self.startbutton = QPushButton("Начать просмотр", self)
@@ -96,11 +96,11 @@ class MainWindow(QMainWindow):
         self.guidetext.resize(round(500 * self.kw), (round(height * 0.48)))
         self.guidetext.move(width // 2 - self.guidetext.width() // 2,
                             round(height * 0.26) - round(100 * self.kh) // 2)
-        self.guidetext.setText("Разрабы Дауны")
+        self.guidetext.setText("Здесь могла бы быть наша документация")
         self.guidetext.hide()
         self.backbutton = QPushButton("Назад", self)
         self.backbutton.resize((width - self.vtkWidget.width()) // 2, round(100 * self.kh))
-#        self.backbutton.move()
+        #        self.backbutton.move()
         self.backbutton.hide()
         self.backbutton.clicked.connect(self.back)
         self.vtktext = QTextBrowser(self)
@@ -126,7 +126,6 @@ class MainWindow(QMainWindow):
     def guide(self):
         self.hidebuttons()
         self.guidetext.show()
-
 
     def test(self):
         self.hidebuttons()
