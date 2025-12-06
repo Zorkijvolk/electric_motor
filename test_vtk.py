@@ -1,12 +1,15 @@
 from PyQt6.QtWidgets import QMainWindow, QPushButton, QApplication, QTextBrowser, QTextEdit
 from PyQt6.QtGui import QFont
 import sys
+from vtkmodules.vtkCommonColor import vtkNamedColors
+from vtkmodules.vtkFiltersCore import vtkTriangleFilter
 import vtkmodules.vtkInteractionStyle as vis
-import vtkmodules.vtkRenderingOpenGL2
 import vtk
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.vtkRenderingCore import (
     vtkActor,
+    vtkCellPicker,
+    vtkDataSetMapper,
     vtkPolyDataMapper,
     vtkRenderer
 )
@@ -21,6 +24,47 @@ class NamedActor(vtkActor):
         return self.name
 
 
+class MouseInteractorStyle(vis.vtkInteractorStyleRubberBandPick):
+    def __init__(self, data, textwidget):
+        self.AddObserver('LeftButtonPressEvent', self.left_button_press_event)
+        self.AddObserver('MiddleButtonPressEvent', self.middle_button_press_event)
+        self.AddObserver('MiddleButtonReleaseEvent', self.middle_button_release_event)
+        self.data = data
+        self.last_actor = None
+        self.selected_mapper = vtkDataSetMapper()
+        self.selected_actor = vtkActor()
+        self.textwidget = textwidget
+
+    def left_button_press_event(self, obj, event):
+        colors = vtkNamedColors()
+
+        # Get the location of the click (in window coordinates)
+        pos = self.GetInteractor().GetEventPosition()
+
+        picker = vtkCellPicker()
+        picker.SetTolerance(0.0005)
+
+        # Pick from this location.
+        picker.Pick(pos[0], pos[1], 0, self.GetDefaultRenderer())
+
+        world_position = picker.GetPickPosition()
+
+        if picker.GetCellId() != -1:
+            a = picker.GetActor()
+            if self.last_actor:
+                self.last_actor.GetProperty().SetColor(colors.GetColor3d("light_grey"))
+            a.GetProperty().SetColor(colors.GetColor3d("orange"))
+            self.last_actor = a
+            self.textwidget.setText(a.get_name())
+        self.OnLeftButtonDown()
+
+    def middle_button_press_event(self, obj, event):
+        return
+
+    def middle_button_release_event(self, obj, event):
+        return
+
+
 class MainWindow(QMainWindow):
     def __init__(self, width, height):
         super().__init__()
@@ -30,6 +74,7 @@ class MainWindow(QMainWindow):
         self.cans = [x.strip() for x in open("tasks/ans.txt").read().split("\n")]
 
     def InintUI(self, width, height):
+        colors = vtkNamedColors()
         self.kw = 1500 / width
         self.kh = 750 / height
         self.setGeometry(0, 0, width, height)
@@ -43,15 +88,38 @@ class MainWindow(QMainWindow):
         cilinder.SetFileName("models/cilinder.stl")
         cube = vtk.vtkSTLReader()
         cube.SetFileName("models/cube.stl")
+
+        triangle_filter = vtkTriangleFilter()
+        triangle_filter.SetInputConnection(ball.GetOutputPort())
+        triangle_filter.SetInputConnection(cilinder.GetOutputPort())
+        triangle_filter.SetInputConnection(cube.GetOutputPort())
+        triangle_filter.Update()
+
         self.vtkWidget = QVTKRenderWindowInteractor(self)
         self.vtkWidget.resize(height, height)
         self.vtkWidget.move((width - height) // 2, 0)
         self.ren = vtkRenderer()
+        colors = vtkNamedColors()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
-#        self.iren.SetInteractorStyle(vis.vtkInteractorStyleTrackballCamera())
-        self.iren.SetInteractorStyle(vis.vtkInteractorStyleRubberBandPick())
-        self.iren.AddObserver('LeftButtonPressEvent', self.process_pick)
+        #        self.iren.SetInteractorStyle(vis.vtkInteractorStyleTrackballCamera())
+
+        self.backbutton = QPushButton("Назад", self)
+        self.backbutton.resize((width - self.vtkWidget.width()) // 2, round(100 * self.kh))
+        #        self.backbutton.move()
+        self.backbutton.hide()
+        self.backbutton.clicked.connect(self.back)
+
+        self.vtktext = QTextBrowser(self)
+        self.vtktext.resize(self.backbutton.width(), height)
+        self.vtktext.move(height + self.backbutton.width(), 0)
+        self.vtktext.hide()
+
+        style = MouseInteractorStyle(triangle_filter.GetOutput(), self.vtktext)
+        style.SetDefaultRenderer(self.ren)
+        self.iren.SetInteractorStyle(style)
+        #        self.iren.SetInteractorStyle(vis.vtkInteractorStyleRubberBandPick())
+        #        self.iren.AddObserver("Select3DEvent", self.process_pick)
 
         mapper1 = vtkPolyDataMapper()
         mapper1.SetInputConnection(ball.GetOutputPort())
@@ -61,24 +129,29 @@ class MainWindow(QMainWindow):
         mapper3.SetInputConnection(cilinder.GetOutputPort())
 
         actor1 = NamedActor("ball")
+        actor1.GetProperty().SetColor(colors.GetColor3d("light_grey"))
         actor1.SetMapper(mapper1)
         actor2 = NamedActor("cube")
+        actor2.GetProperty().SetColor(colors.GetColor3d("light_grey"))
         actor2.SetMapper(mapper2)
         actor3 = NamedActor("cilinder")
+        actor3.GetProperty().SetColor(colors.GetColor3d("light_grey"))
         actor3.SetMapper(mapper3)
 
         self.ren.AddActor(actor1)
         self.ren.AddActor(actor2)
         self.ren.AddActor(actor3)
 
+        self.ren.SetBackground(colors.GetColor3d('PaleTurquoise'))
+
         self.ren.ResetCamera()
-#        self.frame.move(0, 0)
+        #        self.frame.move(0, 0)
         self.vtkWidget.hide()
 
         self.startbutton = QPushButton("Начать просмотр", self)
         self.startbutton.resize(round(500 * self.kw), round(100 * self.kh))
         self.startbutton.move(width // 2 - self.startbutton.width() // 2,
-                             round(height * 0.35) - self.startbutton.height() // 2)
+                              round(height * 0.35) - self.startbutton.height() // 2)
         self.startbutton.clicked.connect(self.start)
         self.endbutton = QPushButton("Выйти из программы", self)
         self.endbutton.resize(round(500 * self.kw), round(100 * self.kh))
@@ -92,7 +165,7 @@ class MainWindow(QMainWindow):
         self.testbutton = QPushButton("Обучение по работе с программой", self)
         self.testbutton.resize(round(500 * self.kw), round(100 * self.kh))
         self.testbutton.move(width // 2 - self.startbutton.width() // 2,
-                              round(height * 0.2) - self.startbutton.height() // 2)
+                             round(height * 0.2) - self.startbutton.height() // 2)
         self.testbutton.clicked.connect(self.test)
         self.endbutton.clicked.connect(self.end)
         self.guidetext = QTextBrowser(self)
@@ -101,15 +174,6 @@ class MainWindow(QMainWindow):
                             round(height * 0.26) - round(100 * self.kh) // 2)
         self.guidetext.setText("Здесь могла бы быть наша документация")
         self.guidetext.hide()
-        self.backbutton = QPushButton("Назад", self)
-        self.backbutton.resize((width - self.vtkWidget.width()) // 2, round(100 * self.kh))
-#        self.backbutton.move()
-        self.backbutton.hide()
-        self.backbutton.clicked.connect(self.back)
-        self.vtktext = QTextBrowser(self)
-        self.vtktext.resize(self.backbutton.width(), height)
-        self.vtktext.move(height + self.backbutton.width(), 0)
-        self.vtktext.hide()
         self.c_test_button = QPushButton("Скрыть корпус", self)
         self.c_test_button.resize(self.backbutton.width(), self.backbutton.height())
         self.c_test_button.move(0, self.backbutton.height() + 1)
@@ -119,7 +183,7 @@ class MainWindow(QMainWindow):
         self.lesson_button = QPushButton("Задачи", self)
         self.lesson_button.resize(round(500 * self.kw), round(100 * self.kh))
         self.lesson_button.move(width // 2 - self.lesson_button.width() // 2,
-                              round(height * 0.65) - self.lesson_button.height() // 2)
+                                round(height * 0.65) - self.lesson_button.height() // 2)
 
         self.firsttask = QTextBrowser(self)
         self.firsttask.resize(width // 2, round(height * 0.1))
@@ -198,22 +262,12 @@ class MainWindow(QMainWindow):
         self.clearButton.clicked.connect(self.clear)
         self.subbutton.clicked.connect(self.check_ans)
 
-
     def end(self):
         sys.exit()
 
     def process_pick(self, object, event):
-        pass
-#        print(event)
-#        print(object)
-#        point_id = object.GetPointId()
-#        if point_id >= 0:
-#            vector_magnitude = self.vtkWidget.GetOutput().GetPointData().GetScalars().GetTuple(point_id)
-#            print(vector_magnitude)
-#            print(vector_magnitude[0])
-#        else:
-#            print(True)
-#        print("You clicked at", self.iren.GetEventPosition())
+        print(object)
+        print(event)
 
     def hidebuttons(self):
         self.startbutton.hide()
@@ -244,7 +298,6 @@ class MainWindow(QMainWindow):
         self.fourthtask.setStyleSheet("")
         self.fifthtask.setStyleSheet("")
 
-
     def lesson(self):
         self.hidebuttons()
         self.firsttask.show()
@@ -259,7 +312,9 @@ class MainWindow(QMainWindow):
         self.thirdans.show()
         self.fourthans.show()
         self.fifthans.show()
-
+        colors = vtkNamedColors()
+        for act in self.ren.GetActors():
+            act.GetProperty().SetColor(colors.GetColor3d("light_grey"))
 
     def test(self):
         self.hidebuttons()
@@ -271,7 +326,6 @@ class MainWindow(QMainWindow):
         for actor in self.deleted_test_actors:
             self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
             self.deleted_test_actors.remove(actor)
-
 
     def check_ans(self):
         if self.firstans.toPlainText() == self.cans[0]:
@@ -354,7 +408,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     screen = QApplication.screens()[0].size()
     window = MainWindow(screen.width(), screen.height())
-#    window.show()
+    #window.show()
     window.showFullScreen()
     window.iren.Initialize()
     sys.exit(app.exec())
