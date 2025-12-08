@@ -55,7 +55,16 @@ class MouseInteractorStyle(vis.vtkInteractorStyleRubberBandPick):
                 self.last_actor.GetProperty().SetColor(colors.GetColor3d("light_grey"))
             a.GetProperty().SetColor(colors.GetColor3d("orange"))
             self.last_actor = a
-            self.textwidget.setText(a.get_name())
+            print(a.get_name())
+            self.textwidget.setText(open(f"descriptions/{a.get_name()}.txt", encoding="UTF-8").read())
+        else:
+            if self.last_actor:
+                if self.last_actor.get_name() == "cube":
+                    self.textwidget.setText(open("descriptions/test.txt", encoding="UTF-8").read())
+                else:
+                    self.textwidget.setText(open("descriptions/hide.txt", encoding="UTF-8").read())
+                self.last_actor.GetProperty().SetColor(colors.GetColor3d("light_grey"))
+                self.last_actor = None
         self.OnLeftButtonDown()
 
     def middle_button_press_event(self, obj, event):
@@ -71,7 +80,7 @@ class MainWindow(QMainWindow):
         self.deleted_actors = []
         self.deleted_test_actors = []
         self.InintUI(width, height)
-        self.cans = [x.strip() for x in open("tasks/ans.txt").read().split("\n")]
+        self.cans = [x.strip() for x in open("tasks/ans.txt", encoding="UTF-8").read().split("\n")]
 
     def InintUI(self, width, height):
         colors = vtkNamedColors()
@@ -320,7 +329,7 @@ class MainWindow(QMainWindow):
         self.hidebuttons()
         self.vtkWidget.show()
         self.vtktext.show()
-        self.vtktext.setText("Это тестовая модель")
+        self.vtktext.setText(open("descriptions/test.txt", encoding="UTF-8").read())
         self.c_test_button.show()
         self.c_test_button.setText("Скрыть корпус")
         for actor in self.deleted_test_actors:
