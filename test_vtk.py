@@ -16,12 +16,15 @@ from vtkmodules.vtkRenderingCore import (
 
 
 class NamedActor(vtkActor):
-    def __init__(self, name):
+    def __init__(self, name=""):
         super().__init__()
         self.name = name
 
     def get_name(self):
         return self.name
+
+    def set_name(self, name):
+        self.name = name
 
 
 class MouseInteractorStyle(vis.vtkInteractorStyleRubberBandPick):
@@ -55,7 +58,6 @@ class MouseInteractorStyle(vis.vtkInteractorStyleRubberBandPick):
                 self.last_actor.GetProperty().SetColor(colors.GetColor3d("light_grey"))
             a.GetProperty().SetColor(colors.GetColor3d("orange"))
             self.last_actor = a
-            print(a.get_name())
             self.textwidget.setText(open(f"descriptions/{a.get_name()}.txt", encoding="UTF-8").read())
         else:
             if self.last_actor:
@@ -81,9 +83,11 @@ class MainWindow(QMainWindow):
         self.deleted_test_actors = []
         self.InintUI(width, height)
         self.cans = [x.strip() for x in open("tasks/ans.txt", encoding="UTF-8").read().split("\n")]
+        self.curstage = 0
+        self.testactors = []
+        self.mainactors = []
 
     def InintUI(self, width, height):
-        colors = vtkNamedColors()
         self.kw = 1500 / width
         self.kh = 750 / height
         self.setGeometry(0, 0, width, height)
@@ -91,17 +95,20 @@ class MainWindow(QMainWindow):
         font = QFont()
         font.setFamily("Comic Sans MS")
 
-        ball = vtk.vtkSTLReader()
-        ball.SetFileName("models/ball.stl")
-        cilinder = vtk.vtkSTLReader()
-        cilinder.SetFileName("models/cilinder.stl")
-        cube = vtk.vtkSTLReader()
-        cube.SetFileName("models/cube.stl")
+        outputports = [vtk.vtkSTLReader() for _ in range(6)]
+
+        outputports[0].SetFileName("models/ball.stl")
+        outputports[1].SetFileName("models/cilinder.stl")
+        outputports[2].SetFileName("models/cube.stl")
+        outputports[3].SetFileName("modelsbyZ/Anchor_Core.stl")
+        outputports[4].SetFileName("modelsbyZ/Fan.stl")
+        outputports[5].SetFileName("modelsbyZ/Shell.stl")
+
 
         triangle_filter = vtkTriangleFilter()
-        triangle_filter.SetInputConnection(ball.GetOutputPort())
-        triangle_filter.SetInputConnection(cilinder.GetOutputPort())
-        triangle_filter.SetInputConnection(cube.GetOutputPort())
+
+        for i in range(2):
+            triangle_filter.SetInputConnection(outputports[i].GetOutputPort())
         triangle_filter.Update()
 
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -130,28 +137,29 @@ class MainWindow(QMainWindow):
         #        self.iren.SetInteractorStyle(vis.vtkInteractorStyleRubberBandPick())
         #        self.iren.AddObserver("Select3DEvent", self.process_pick)
 
-        mapper1 = vtkPolyDataMapper()
-        mapper1.SetInputConnection(ball.GetOutputPort())
-        mapper2 = vtkPolyDataMapper()
-        mapper2.SetInputConnection(cube.GetOutputPort())
-        mapper3 = vtkPolyDataMapper()
-        mapper3.SetInputConnection(cilinder.GetOutputPort())
+        mappers = [vtkPolyDataMapper() for _ in range(6)]
+        for x in range(6):
+            mappers[x].SetInputConnection(outputports[x].GetOutputPort())
 
-        actor1 = NamedActor("ball")
-        actor1.GetProperty().SetColor(colors.GetColor3d("light_grey"))
-        actor1.SetMapper(mapper1)
-        actor2 = NamedActor("cube")
-        actor2.GetProperty().SetColor(colors.GetColor3d("light_grey"))
-        actor2.SetMapper(mapper2)
-        actor3 = NamedActor("cilinder")
-        actor3.GetProperty().SetColor(colors.GetColor3d("light_grey"))
-        actor3.SetMapper(mapper3)
+        actors = [NamedActor() for _ in range(6)]
+        for x in actors:
+            x.GetProperty().SetColor(colors.GetColor3d("light_grey"))
+        actors[0].set_name("ball")
+        actors[1].set_name("cilinder")
+        actors[2].set_name("cube")
+        actors[3].set_name("Anchor")
+        actors[4].set_name("Fan")
+        actors[5].set_name("Shell")
+        for x in range(6):
+            actors[x].SetMapper(mappers[x])
 
-        self.ren.AddActor(actor1)
-        self.ren.AddActor(actor2)
-        self.ren.AddActor(actor3)
+        self.ren.AddActor(actors[0])
+        self.ren.AddActor(actors[1])
+        self.ren.AddActor(actors[2])
 
-        self.ren.SetBackground(colors.GetColor3d('PaleTurquoise'))
+
+
+        self.ren.SetBackground(colors.GetColor3d('Black'))
 
         self.ren.ResetCamera()
         #        self.frame.move(0, 0)
@@ -274,10 +282,6 @@ class MainWindow(QMainWindow):
     def end(self):
         sys.exit()
 
-    def process_pick(self, object, event):
-        print(object)
-        print(event)
-
     def hidebuttons(self):
         self.startbutton.hide()
         self.endbutton.hide()
@@ -369,9 +373,19 @@ class MainWindow(QMainWindow):
             self.fifthtask.setStyleSheet("border: 1px solid red;")
 
     def start(self):
+        self.curstage = 1
         self.hidebuttons()
+        self.vtkWidget.show()
+        self.vtktext.show()
+        self.vtktext.setText(open("descriptions/main.txt", encoding="UTF-8").read())
+        self.c_test_button.show()
+        self.c_test_button.setText("Скрыть корпус")
+        for actor in self.deleted_test_actors:
+            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
+            self.deleted_test_actors.remove(actor)
 
     def back(self):
+        self.curstage = 0
         self.startbutton.show()
         self.endbutton.show()
         self.testbutton.show()
