@@ -95,19 +95,22 @@ class MainWindow(QMainWindow):
         font = QFont()
         font.setFamily("Comic Sans MS")
 
-        outputports = [vtk.vtkSTLReader() for _ in range(6)]
+        outputports = [vtk.vtkSTLReader() for _ in range(10)]
 
         outputports[0].SetFileName("models/ball.stl")
         outputports[1].SetFileName("models/cilinder.stl")
         outputports[2].SetFileName("models/cube.stl")
-        outputports[3].SetFileName("modelsbyZ/Anchor_Core.stl")
-        outputports[4].SetFileName("modelsbyZ/Fan.stl")
-        outputports[5].SetFileName("modelsbyZ/Shell.stl")
-
+        outputports[3].SetFileName("models/Anchore_Core.stl")
+        outputports[4].SetFileName("models/Brushes.stl")
+        outputports[5].SetFileName("models/Collector.stl")
+        outputports[6].SetFileName("models/Excitation_coil.stl")
+        outputports[7].SetFileName("models/Shaft.stl")
+        outputports[8].SetFileName("models/Shell.stl")
+        outputports[9].SetFileName("models/Fan.stl")
 
         triangle_filter = vtkTriangleFilter()
 
-        for i in range(2):
+        for i in range(10):
             triangle_filter.SetInputConnection(outputports[i].GetOutputPort())
         triangle_filter.Update()
 
@@ -137,27 +140,37 @@ class MainWindow(QMainWindow):
         #        self.iren.SetInteractorStyle(vis.vtkInteractorStyleRubberBandPick())
         #        self.iren.AddObserver("Select3DEvent", self.process_pick)
 
-        mappers = [vtkPolyDataMapper() for _ in range(6)]
-        for x in range(6):
+        mappers = [vtkPolyDataMapper() for _ in range(10)]
+        for x in range(10):
             mappers[x].SetInputConnection(outputports[x].GetOutputPort())
 
-        actors = [NamedActor() for _ in range(6)]
+        actors = [NamedActor() for _ in range(10)]
         for x in actors:
             x.GetProperty().SetColor(colors.GetColor3d("light_grey"))
         actors[0].set_name("ball")
         actors[1].set_name("cilinder")
         actors[2].set_name("cube")
-        actors[3].set_name("Anchor")
-        actors[4].set_name("Fan")
-        actors[5].set_name("Shell")
-        for x in range(6):
+        actors[3].set_name("Anchor_Core")
+        actors[4].set_name("Brushes")
+        actors[5].set_name("Collector")
+        actors[6].set_name("Excitation_coil")
+        actors[7].set_name("Shaft")
+        actors[8].set_name("Shell")
+        actors[9].set_name("Fan")
+
+        for x in range(10):
             actors[x].SetMapper(mappers[x])
 
-        self.ren.AddActor(actors[0])
-        self.ren.AddActor(actors[1])
-        self.ren.AddActor(actors[2])
-
-
+        self.deleted_test_actors.append(actors[0])
+        self.deleted_test_actors.append(actors[1])
+        self.deleted_test_actors.append(actors[2])
+        self.deleted_actors.append(actors[3])
+        self.deleted_actors.append(actors[4])
+        self.deleted_actors.append(actors[5])
+        self.deleted_actors.append(actors[6])
+        self.deleted_actors.append(actors[7])
+        self.deleted_actors.append(actors[8])
+        self.deleted_actors.append(actors[9])
 
         self.ren.SetBackground(colors.GetColor3d('Black'))
 
@@ -336,9 +349,10 @@ class MainWindow(QMainWindow):
         self.vtktext.setText(open("descriptions/test.txt", encoding="UTF-8").read())
         self.c_test_button.show()
         self.c_test_button.setText("Скрыть корпус")
-        for actor in self.deleted_test_actors:
-            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
-            self.deleted_test_actors.remove(actor)
+        print(len(self.deleted_test_actors))
+        for _ in range(len(self.deleted_test_actors)):
+            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(self.deleted_test_actors[0])
+            self.deleted_test_actors.remove(self.deleted_test_actors[0])
 
     def check_ans(self):
         if self.firstans.toPlainText() == self.cans[0]:
@@ -380,12 +394,26 @@ class MainWindow(QMainWindow):
         self.vtktext.setText(open("descriptions/main.txt", encoding="UTF-8").read())
         self.c_test_button.show()
         self.c_test_button.setText("Скрыть корпус")
-        for actor in self.deleted_test_actors:
-            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
-            self.deleted_test_actors.remove(actor)
+        print(len(self.deleted_actors))
+        for _ in range(len(self.deleted_actors)):
+            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(self.deleted_actors[0])
+            self.deleted_actors.remove(self.deleted_actors[0])
 
     def back(self):
         self.curstage = 0
+        if self.vtkWidget.isVisible():
+            if list(self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors())[0].get_name() in ["ball",
+                                                                                                     "cilinder",
+                                                                                                     "cube"]:
+                for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
+                    del_actor = actor
+                    self.deleted_test_actors.append(actor)
+                    self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
+            else:
+                for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
+                    del_actor = actor
+                    self.deleted_actors.append(actor)
+                    self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
         self.startbutton.show()
         self.endbutton.show()
         self.testbutton.show()
@@ -411,19 +439,38 @@ class MainWindow(QMainWindow):
         self.clear()
 
     def c_test(self):
-        if self.c_test_button.text() == "Скрыть корпус":
-            for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
-                if actor.get_name() == "cube":
-                    del_actor = actor
-                    self.deleted_test_actors.append(actor)
-                    break
-            self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
-            self.c_test_button.setText("Показать корпус")
+        if list(self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors())[0].get_name() in ["ball",
+                                                                                                            "cilinder",
+                                                                                                            "cube"]:
+            if self.c_test_button.text() == "Скрыть корпус":
+                for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
+                    print(actor.get_name())
+                    if actor.get_name() == "cube":
+                        del_actor = actor
+                        self.deleted_test_actors.append(actor)
+                        print(actor.get_name())
+                        break
+                self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
+                self.c_test_button.setText("Показать корпус")
+            else:
+                self.c_test_button.setText("Скрыть корпус")
+                for actor in self.deleted_test_actors:
+                    self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
+                    self.deleted_test_actors.remove(actor)
         else:
-            self.c_test_button.setText("Скрыть корпус")
-            for actor in self.deleted_test_actors:
-                self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
-                self.deleted_test_actors.remove(actor)
+            if self.c_test_button.text() == "Скрыть корпус":
+                for actor in self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().GetActors():
+                    if actor.get_name() == "Shell":
+                        del_actor = actor
+                        self.deleted_actors.append(actor)
+                        break
+                self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().RemoveActor(del_actor)
+                self.c_test_button.setText("Показать корпус")
+            else:
+                self.c_test_button.setText("Скрыть корпус")
+                for actor in self.deleted_actors:
+                    self.vtkWidget.GetRenderWindow().GetRenderers().GetFirstRenderer().AddActor(actor)
+                    self.deleted_actors.remove(actor)
         self.vtkWidget.update()
 
 
@@ -431,7 +478,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     screen = QApplication.screens()[0].size()
     window = MainWindow(screen.width(), screen.height())
-    #window.show()
+    # window.show()
     window.showFullScreen()
     window.iren.Initialize()
     sys.exit(app.exec())
